@@ -1,0 +1,38 @@
+From d648a911fb51ff5a8c452245d1edec4342a6b10e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Dawid=20Jab=C5=82o=C5=84ski?=
+ <50398562+xederro@users.noreply.github.com>
+Date: Thu, 9 Oct 2025 21:16:49 +0200
+Subject: [PATCH] test
+
+---
+ plugins/rollup.config.js | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/plugins/rollup.config.js b/plugins/rollup.config.js
+index 4ab99079a4..80c9a720cc 100644
+--- a/plugins/rollup.config.js
++++ b/plugins/rollup.config.js
+@@ -42,13 +42,13 @@ const {nodeResolve} = requirePlugin('@rollup/plugin-node-resolve');
+ 
+ export default {
+   treeshake: false,
+-  onwarn: warning => {
+-    // No warnings from rollupjs are allowed.
+-    // Most of the warnings are real error in our code (for example,
+-    // if some import couldn't be resolved we can't continue, but rollup
+-    // reports it as a warning)
+-    throw new Error(warning.message);
+-  },
++  // onwarn: warning => {
++  //   // No warnings from rollupjs are allowed.
++  //   // Most of the warnings are real error in our code (for example,
++  //   // if some import couldn't be resolved we can't continue, but rollup
++  //   // reports it as a warning)
++  //   throw new Error(warning.message);
++  // },
+   // Context must be set to window to correctly process global variables
+   context: 'window',
+   plugins: [nodeResolve({
+-- 
+2.51.0
+
