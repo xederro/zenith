@@ -43,7 +43,6 @@ public class FileRepoHelper {
   private final GitRepositoryManager repoManager;
   private final Handlebars engine;
 
-  // Dependency injection constructor
   @Inject
   public FileRepoHelper(GerritApi gerritApi, GitRepositoryManager repoManager, Handlebars engine) {
     this.gerritApi = gerritApi;

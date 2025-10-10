@@ -17,15 +17,13 @@
 
 package tech.xederro.zenith;
 
-import com.google.gerrit.extensions.registration.DynamicSet;
-import com.google.gerrit.extensions.webui.TopMenu;
-import com.google.inject.AbstractModule;
+import com.google.gerrit.extensions.restapi.RestApiModule;
 
-// Bind this plugin in your plugin's Guice Module:
-class ZenithModule extends AbstractModule {
+import static com.google.gerrit.server.config.ConfigResource.CONFIG_KIND;
+
+public class ZenithRestModule extends RestApiModule {
   @Override
   protected void configure() {
-    DynamicSet.bind(binder(), TopMenu.class).to(TopMenuEntry.class);
-    install(new ZenithRestModule());
+    get(CONFIG_KIND, "tree").to(ProjectTreeRest.class);
   }
 }
