@@ -64,6 +64,14 @@ public class FileRepoHelper {
     String ref = fromRefTo[1];
     String to = fromRefTo[2];
 
+    if (!to.equals("refs/meta/config")) {
+      to = Constants.R_HEADS + to;
+    }
+
+    if (!ref.equals("refs/meta/config")) {
+      ref = Constants.R_HEADS + ref;
+    }
+
     try (Repository repo = repoManager.openRepository(Project.nameKey(projectTo))) {
       ObjectInserter inserter = repo.newObjectInserter();
 
@@ -72,7 +80,7 @@ public class FileRepoHelper {
       DirCacheEditor editor = dc.editor();
 
       // Walk source repo and apply template logic
-      walkRepo(from, Constants.R_HEADS + ref, editor, inserter, json);
+      walkRepo(from, ref, editor, inserter, json);
 
       editor.finish();
       ObjectId treeId = dc.writeTree(inserter);
@@ -89,7 +97,7 @@ public class FileRepoHelper {
       inserter.flush();
 
       // Update or create the specified branch to point to new commit
-      RefUpdate refUpdate = repo.updateRef(Constants.R_HEADS + to);
+      RefUpdate refUpdate = repo.updateRef(to);
       refUpdate.setNewObjectId(commitId);
       refUpdate.setForceUpdate(true);
       RefUpdate.Result result = refUpdate.update();
@@ -111,23 +119,24 @@ public class FileRepoHelper {
         try (TreeWalk treeWalk = new TreeWalk(repo)) {
           treeWalk.addTree(tree);
           treeWalk.setRecursive(true);
-          if (treeWalk.next()) {
-            ObjectId objectId = treeWalk.getObjectId(0);
-            try (ObjectReader reader = repo.newObjectReader()) {
-              // Read file data and process as Handlebars template
-              byte[] data = reader.open(objectId).getBytes();
-              Template template = engine.compileInline(new String(data, StandardCharsets.UTF_8));
-              String content = template.apply(json);
-              ObjectId blobId = inserter.insert(Constants.OBJ_BLOB, content.getBytes());
-              String fileName = treeWalk.getNameString();
-              // Add output file to in-memory index
-              editor.add(new DirCacheEditor.PathEdit(fileName) {
-                @Override
-                public void apply(DirCacheEntry ent) {
-                  ent.setFileMode(treeWalk.getFileMode());
-                  ent.setObjectId(blobId);
-                }
-              });
+          while (treeWalk.next()) {
+            if (treeWalk.getFileMode(0).equals(FileMode.REGULAR_FILE)) {
+              ObjectId objectId = treeWalk.getObjectId(0);
+              try (ObjectReader reader = repo.newObjectReader()) {
+                // Read file data and process as Handlebars template
+                byte[] data = reader.open(objectId).getBytes();
+                Template template = engine.compileInline(new String(data, StandardCharsets.UTF_8));
+                String content = template.apply(json);
+                ObjectId blobId = inserter.insert(Constants.OBJ_BLOB, content.getBytes());
+                String filePath = treeWalk.getPathString();
+                editor.add(new DirCacheEditor.PathEdit(filePath) {
+                  @Override
+                  public void apply(DirCacheEntry ent) {
+                    ent.setFileMode(FileMode.REGULAR_FILE);
+                    ent.setObjectId(blobId);
+                  }
+                });
+              }
             }
           }
         }
