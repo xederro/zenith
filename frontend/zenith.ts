@@ -68,8 +68,10 @@ export class ZenithPage extends LitElement {
 
     const cell = svg.selectAll()
         .data(root.descendants())
-        .join("g")
-        .attr("transform", (d: any) => `translate(${d.y0},${d.x0})`);
+        .join("a")
+        .attr("transform", (d: any) => `translate(${d.y0},${d.x0})`)
+        .attr("xlink:href", (d: any) => `/admin/repos/${d.data.name},access`)
+        .attr("target", "_blank");
 
     cell.append("title")
         .text((d: any) => `${d.data.name}\n${d.data.value}`);
