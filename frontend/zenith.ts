@@ -31,7 +31,7 @@ export class ZenithPage extends LitElement {
   override render() {
     return html`
       <div>
-        <h1>Icicle Graph</h1>
+        <h1>Repository Graph</h1>
         <div id="d3-container"></div>
       </div>
     `;

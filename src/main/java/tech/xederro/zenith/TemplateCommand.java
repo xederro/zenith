@@ -17,8 +17,6 @@
 
 package tech.xederro.zenith;
 
-import com.google.gerrit.extensions.api.projects.ProjectInput;
-import com.google.gerrit.extensions.client.SubmitType;
 import com.google.gerrit.sshd.SshCommand;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
@@ -29,18 +27,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// SSH command for project creation from templates
+// SSH command for applying templates to repositories
 public class TemplateCommand extends SshCommand {
-  private final ProjectInput input;
-  private final FileRepoHelper fileRepoHelper;
-  private final Gson gson;
+  protected final FileRepoHelper fileRepoHelper;
+  protected final Gson gson;
 
-  private List<String> targets;
-  private Object json;
+  protected List<String> targets;
+  protected Object json;
+  protected String name;
 
   @Inject
-  public TemplateCommand(ProjectInput input, FileRepoHelper fileRepoHelper, Gson gson) {
-    this.input = input;
+  public TemplateCommand(FileRepoHelper fileRepoHelper, Gson gson) {
     this.fileRepoHelper = fileRepoHelper;
     this.gson = gson;
   }
@@ -57,59 +54,7 @@ public class TemplateCommand extends SshCommand {
           If name ends with .git the suffix will be automatically removed.""",
       required = true)
   public void setName(String name) {
-    this.input.name = name;
-  }
-
-  @Option(
-      name = "--parent",
-      aliases = {"-p"},
-      metaVar = "PARENT",
-      usage = "The name of the parent project. If not set, the All-Projects project will be the parent project.")
-  public void setParent(String parent) {
-    this.input.parent = parent;
-  }
-
-  @Option(
-      name = "--desc",
-      aliases = {"-d"},
-      metaVar = "DESC",
-      usage = "The description of the project.")
-  public void setDesc(String description) {
-    this.input.description = description;
-  }
-
-  @Option(
-      name = "--permissions-only",
-      aliases = {"-po"},
-      metaVar = "PERMISSIONS-ONLY",
-      usage = "Whether a permission-only project should be created.")
-  public void setPermissionsOnly(Boolean permissionsOnly) {
-    this.input.permissionsOnly = permissionsOnly;
-  }
-
-  @Option(
-      name = "--submit-type",
-      aliases = {"-st"},
-      metaVar = "SUBMIT-TYPE",
-      usage = """
-          The submit type that should be set for the project (MERGE_IF_NECESSARY, REBASE_IF_NECESSARY, REBASE_ALWAYS, FAST_FORWARD_ONLY, MERGE_ALWAYS, CHERRY_PICK).
-          If not set, MERGE_IF_NECESSARY is set as submit type unless repository.<name>.defaultSubmitType is set to a different value.""")
-  public void setSubmitType(String submitType) {
-    this.input.submitType = SubmitType.valueOf(submitType.toUpperCase());
-  }
-
-  @Option(
-      name = "--branches",
-      aliases = {"-b"},
-      metaVar = "BRANCHES",
-      usage = """
-          A list of branches that should be initially created.
-          For the branch names the refs/heads/ prefix can be omitted.
-          The first entry of the list will be the default branch.
-          If the list is empty, host-level default is used.
-          Branches in the Gerrit internal ref space are not allowed, such as refs/groups/, refs/changes/, etc…""")
-  public void setBranches(String branches) {
-    this.input.branches = Arrays.stream(branches.split(",")).map(String::trim).collect(Collectors.toList());
+    this.name = name;
   }
 
   @Option(
@@ -119,27 +64,6 @@ public class TemplateCommand extends SshCommand {
       usage = "from@ref:to,from@ref:to")
   public void setTargets(String targets) {
     this.targets = Arrays.stream(targets.split(",")).map(String::trim).collect(Collectors.toList());
-  }
-
-  @Option(
-      name = "--owners",
-      aliases = {"-o"},
-      metaVar = "OWNERS",
-      usage = """
-          A list of groups that should be assigned as project owner.
-          Each group in the list must be specified as group-id.
-          If not set, the groups that are configured as default owners are set as project owners.""")
-  public void setOwners(String owners) {
-    this.input.owners = Arrays.stream(owners.split(",")).map(String::trim).collect(Collectors.toList());
-  }
-
-  @Option(
-      name = "--max-object-size-limit",
-      aliases = {"-mosl"},
-      metaVar = "MAX-OBJECT-SIZE-LIMIT",
-      usage = "Max allowed Git object size for this project. Common unit suffixes of 'k', 'm', or 'g' are supported.")
-  public void setMaxObjectSizeLimit(String maxObjectSizeLimit) {
-    this.input.maxObjectSizeLimit = maxObjectSizeLimit;
   }
 
   @Option(
@@ -155,17 +79,13 @@ public class TemplateCommand extends SshCommand {
   @Override
   protected void run() {
     try {
-      // Always create an empty commit when creating project
-      this.input.createEmptyCommit = true;
-      // Create the repository
-      fileRepoHelper.createRepo(this.input);
       // If target templates are specified, create corresponding commits
       if (targets != null) {
         for (String target : targets) {
-          fileRepoHelper.createCommit(this.input.name, target, json);
+          fileRepoHelper.createCommit(this.name, target, json);
         }
       }
-      stdout.println("Created project " + this.input.name);
+      stdout.println("Applied template " + this.name);
     } catch (Exception e) {
       stdout.println("error: " + e.getMessage());
     }
