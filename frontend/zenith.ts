@@ -39,8 +39,19 @@ export class ZenithPage extends LitElement {
 
   override async firstUpdated() {
     const plugin = (this as any).plugin;
-    const data: Project = await plugin.restApi().send('GET', "/config/server/zenith~tree");
+    const data: Project = await plugin.restApi().send('GET', `/config/server/zenith~tree?query=${this.getQueryVariable("query")}`);
     this.renderIcicle(data);
+  }
+
+  getQueryVariable(variable: string):string
+  {
+    const query = window.location.search.substring(1);
+    const vars = query.split("&");
+    for (let i=0; i<vars.length; i++) {
+      const pair = vars[i].split("=");
+      if(pair[0] == variable){return pair[1];}
+    }
+    return "";
   }
 
   renderIcicle(data: any) {

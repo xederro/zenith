@@ -5,6 +5,7 @@ import com.google.gerrit.extensions.common.ProjectInfo;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.server.config.ConfigResource;
 import com.google.inject.Inject;
+import org.kohsuke.args4j.Option;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,15 +15,36 @@ import java.util.Map;
 public class ProjectTreeRest implements RestReadView<ConfigResource> {
   private final GerritApi gerritApi;
 
+  private String query;
+
   @Inject
   ProjectTreeRest(GerritApi gerritApi) {
     this.gerritApi = gerritApi;
+  }
+
+  @Option(name = "--query", metaVar = "QUERY")
+  private void parse(String arg) {
+    this.query = arg;
+  }
+
+  @Override
+  public Response<Project> apply(ConfigResource resource) throws AuthException, BadRequestException, ResourceConflictException, Exception {
+    List<ProjectInfo> projectInfoList = gerritApi.projects().query().withQuery(this.query).get();
+    Project root = buildTree(projectInfoList);
+    return Response.ok(root);
   }
 
   public Project buildTree(List<ProjectInfo> projectInfoList) {
     Map<String, Project> projectMap = new HashMap<>();
 
     for (ProjectInfo data : projectInfoList) {
+      /* Idea TODO: create actual info in value for the query created!
+      * @Inject
+      * PermissionBackend permissionBackend;
+      *
+      * PermissionBackend.ForProject forProject = permissionBackend.project(Project.nameKey("test"));
+      * forProject.ref("refs/heads/master").testOrFalse(Permission.PUSH);
+      * */
       projectMap.put(data.name, new Project(data.name, data.parent, new ArrayList<>()));
     }
 
@@ -37,18 +59,10 @@ public class ProjectTreeRest implements RestReadView<ConfigResource> {
     }
 
     if (roots.size() == 1) {
-      return roots.get(0);
+      return roots.getFirst();
     } else {
-      Project root = new Project("root", null, roots);
-      return root;
+      return new Project("root", null, roots);
     }
-  }
-
-  @Override
-  public Response<Project> apply(ConfigResource resource) throws AuthException, BadRequestException, ResourceConflictException, Exception {
-    List<ProjectInfo> projectInfoList = gerritApi.projects().query().get();
-    Project root = buildTree(projectInfoList);
-    return Response.ok(root);
   }
 
   public record Project(String name, String value, List<Project> children) {}
