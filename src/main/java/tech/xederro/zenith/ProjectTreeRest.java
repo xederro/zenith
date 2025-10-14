@@ -48,13 +48,15 @@ public class ProjectTreeRest implements RestReadView<ConfigResource> {
     Map<String, Project> projectMap = new HashMap<>();
 
     for (ProjectInfo data : projectInfoList) {
-      String val = data.parent;
+      Value val;
       try {
         if (config != null) {
           val = getConfigInfo(gerritApi.projects().name(data.name).config());
+        } else {
+          val = new Value(data.parent, false);
         }
       } catch (Exception e) {
-        val = "ERROR";
+        val = new Value("ERROR", false);
       }
       /* Idea TODO: create actual info in value for the query created!
       * @Inject
@@ -83,7 +85,7 @@ public class ProjectTreeRest implements RestReadView<ConfigResource> {
     }
   }
 
-  private String getConfigInfo(ConfigInfo configInfo) throws IllegalStateException {
+  private Value getConfigInfo(ConfigInfo configInfo) throws IllegalStateException {
     ConfigInfo.InheritedBooleanInfo info;
     switch (config) {
       case "use_contributor_agreements" -> info = configInfo.useContributorAgreements;
@@ -105,25 +107,25 @@ public class ProjectTreeRest implements RestReadView<ConfigResource> {
           case "default_submit_type" -> {
             ConfigInfo.SubmitTypeInfo defaultSubmitType = configInfo.defaultSubmitType;
             if (defaultSubmitType.configuredValue == SubmitType.INHERIT) {
-              return defaultSubmitType.inheritedValue.name();
+              return new Value(defaultSubmitType.inheritedValue.name(), true);
             } else {
-              return defaultSubmitType.configuredValue.name();
+              return new Value(defaultSubmitType.configuredValue.name(), false);
             }
           }
           case "max_object_size_limit" -> {
             ConfigInfo.MaxObjectSizeLimitInfo maxObjectSizeLimit = configInfo.maxObjectSizeLimit;
             if (maxObjectSizeLimit == null || maxObjectSizeLimit.value == null) {
-              return "NOT_SET";
+              return new Value("NOT_SET", false);
             } else {
-              return maxObjectSizeLimit.value;
+              return new Value(maxObjectSizeLimit.configuredValue, false);
             }
           }
           case "project_state" -> {
             ProjectState state = configInfo.state;
             if (state == null) {
-              return "NOT_AVAILABLE";
+              return new Value("NOT_AVAILABLE", false);
             } else {
-              return state.name();
+              return new Value(state.name(), false);
             }
           }
           default -> throw new IllegalStateException("Unexpected value: " + config);
@@ -132,14 +134,15 @@ public class ProjectTreeRest implements RestReadView<ConfigResource> {
       }
     }
     if (info == null) {
-      return "NOT_AVAILABLE";
+      return new Value("NOT_AVAILABLE", false);
     }
     if (info.configuredValue == InheritableBoolean.INHERIT) {
-      return info.inheritedValue.toString().toUpperCase();
-    } else  {
-      return info.configuredValue.name();
+      return new Value(info.inheritedValue.toString().toUpperCase(), true);
+    } else {
+      return new Value(info.configuredValue.name(), false);
     }
   }
 
-  public record Project(String name, String value, List<Project> children) {}
+  public record Project(String name, Value value, List<Project> children) {}
+  public record Value(String value, Boolean isInherited) {}
 }
