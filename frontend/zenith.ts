@@ -50,72 +50,126 @@ export class ZenithPage extends LitElement {
 
     const query = args.length > 0 ? `?${args.join("&")}` : "";
     const data: Project = await plugin.restApi().send('GET', `/config/server/zenith~tree${query}`);
-    this.renderIcicle(data);
+
+    // window.history.pushState({}, "", `${args.length > 0 ? `?${args.join("&")}` : ""}`);
+    this.renderTree(data);
   }
 
-  getQueryVariable(variable: string):string
-  {
+  getQueryVariable(variable: string): string {
     const query = window.location.search.substring(1);
     const vars = query.split("&");
-    for (let i=0; i<vars.length; i++) {
+    for (let i = 0; i < vars.length; i++) {
       const pair = vars[i].split("=");
-      if(pair[0] == variable){return pair[1];}
+      if (pair[0] == variable) {
+        return pair[1];
+      }
     }
     return "";
   }
 
-  renderIcicle(data: any) {
+  renderTree(data: any) {
+    /*
+     * Copyright 2017–2023 Observable, Inc.
+     *
+     * Permission to use, copy, modify, and/or distribute this software for any
+     * purpose with or without fee is hereby granted, provided that the above
+     * copyright notice and this permission notice appear in all copies.
+     *
+     * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+     * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+     * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+     * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+     * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+     * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+     * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+     */
     const container = this.renderRoot.querySelector('#d3-container');
     if (!container) return;
     container.innerHTML = '';
 
-    const width = 1000;
-    const height = 4000;
+    const width = container.clientWidth;
 
-    const color = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, data.children.length + 1));
-    const partition = d3.partition().size([height, width]).padding(1);
+    const color = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, this.countUniqueValues(data)));
 
-    const root = partition(
-        d3.hierarchy(data)
-            .sum(() => 1)
-            .sort((a, b) => b.height - a.height)
-    );
+    const root = d3.hierarchy(data);
+
+    const dx = 30;
+    const dy = width / (root.height + 1);
+    const tree = d3.tree<Project>().nodeSize([dx, dy]);
+    tree(root);
+
+    let x0 = Infinity;
+    let x1 = -x0;
+    root.each(d => {
+      if (d.x != undefined && d.x > x1) x1 = d.x;
+      if (d.x != undefined && d.x < x0) x0 = d.x;
+    });
+
+    const height = x1 - x0 + dx * 2;
 
     const svg = d3.create("svg")
+        .attr("viewBox", [-dy / 2, x0 - dx, width, height])
         .attr("width", width)
         .attr("height", height)
-        .attr("viewBox", [0, 0, width, height])
-        .attr("style", "max-width: 100%; height: auto; font: 10px sans-serif");
+        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif");
 
-    const cell = svg.selectAll()
-        .data(root.descendants())
-        .join("a")
-        .attr("transform", (d: any) => `translate(${d.y0},${d.x0})`)
-        .attr("xlink:href", (d: any) => `/admin/repos/${d.data.name},access`)
-        .attr("target", "_blank");
-
-    cell.append("title")
-        .text((d: any) => `${d.data.name}\n${d.data.value}`);
-
-    cell.append("rect")
-        .attr("width", (d: any) => d.y1 - d.y0)
-        .attr("height", (d: any) => d.x1 - d.x0)
-        .attr("fill-opacity", 0.6)
-        .attr("fill", (d: any) => {
-          return color(d.data.value);
+    svg.append("g")
+        .attr("fill", "none")
+        .attr("stroke", "#555")
+        .attr("stroke-opacity", 0.4)
+        .attr("stroke-width", 3)
+        .selectAll("path")
+        .data(root.links())
+        .join("path")
+        .attr("d", (d) => {
+          const linkGenerator = d3
+              .linkHorizontal<d3.HierarchyPointLink<Project>, [number, number]>()
+              .source((link) => [link.source.y, link.source.x])
+              .target((link) => [link.target.y, link.target.x]);
+          return linkGenerator(d as d3.HierarchyPointLink<Project>);
         });
 
-    const text = cell.filter((d: any) => (d.x1 - d.x0) > 16).append("text")
-        .attr("x", 4)
-        .attr("y", 13);
+    const node = svg.append("g")
+        .selectAll("a")
+        .data(root.descendants())
+        .join("a")
+        .attr("xlink:href", (d: any) => `/admin/repos/${d.data.name},access`)
+        .attr("target", "_blank")
+        .attr("transform", (d: any) => `translate(${d.y},${d.x})`);
 
-    text.append("tspan")
-        .text((d: any) => d.data.name);
+    node.append("circle")
+        .attr("fill", (d: any) => color(d.data.value))
+        .attr("r", 6);
 
-    text.append("tspan")
-        .attr("fill-opacity", 0.7)
-        .text((d: any) => ` ${d.data.value}`);
+    node.append("title")
+        .text((d: any) => `${d.data.name}: ${d.data.value}`);
+
+    node.append("text")
+        .attr("dy", "0.32em")
+        .attr("x", 10)
+        .attr("text-anchor", "start")
+        .attr("paint-order", "stroke")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 3)
+        .text((d: any) => `${d.data.name}: ${d.data.value}`);
 
     container.appendChild(svg.node() as Node);
+  }
+
+  countUniqueValues(project: Project | null): number {
+    const uniqueValues = new Set<string>();
+
+    function traverse(node: Project | null): void {
+      if (!node) return;
+
+      uniqueValues.add(node.value);
+
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+
+    traverse(project);
+    return uniqueValues.size;
   }
 }
