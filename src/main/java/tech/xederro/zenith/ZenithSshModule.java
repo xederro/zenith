@@ -26,7 +26,7 @@ public class ZenithSshModule extends PluginCommandModule {
 
   @Override
   protected void configureCommands() {
-    command("apply").to(TemplateCommand.class);
+    command("apply").to(ApplyTemplateCommand.class);
     command("create").to(CreateTemplateCommand.class);
   }
 }

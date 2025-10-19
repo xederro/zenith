@@ -17,50 +17,42 @@
 
 package tech.xederro.zenith;
 
+import com.google.gerrit.sshd.CommandMetaData;
 import com.google.gerrit.sshd.SshCommand;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
-import org.eclipse.jgit.lib.*;
+import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// SSH command for applying templates to repositories
-public class TemplateCommand extends SshCommand {
+@CommandMetaData(
+    name = "apply-template-command",
+    description = "SSH command for applying templates to repositories")
+public class ApplyTemplateCommand extends SshCommand {
   protected final FileRepoHelper fileRepoHelper;
   protected final Gson gson;
 
   protected List<String> targets;
   protected Object json;
-  protected String name;
 
   @Inject
-  public TemplateCommand(FileRepoHelper fileRepoHelper, Gson gson) {
+  public ApplyTemplateCommand(FileRepoHelper fileRepoHelper, Gson gson) {
     this.fileRepoHelper = fileRepoHelper;
     this.gson = gson;
   }
 
   // Command options - populates project input fields from CLI arguments
 
-  @Option(
-      name = "--name",
-      aliases = {"-n"},
-      metaVar = "NAME",
-      usage = """
-          The name of the project (not encoded).
-          If set, must match the project name in the URL.
-          If name ends with .git the suffix will be automatically removed.""",
-      required = true)
-  public void setName(String name) {
-    this.name = name;
-  }
+  @Argument(index = 0, metaVar = "NAME", usage = "name of project to be created")
+  protected String projectName;
 
   @Option(
-      name = "--targets",
-      aliases = {"-t"},
-      metaVar = "TARGETS",
+      name = "--template-targets",
+      aliases = {"-tt"},
+      metaVar = "TEMPLATE-TARGETS",
       usage = "from@ref:to,from@ref:to")
   public void setTargets(String targets) {
     this.targets = Arrays.stream(targets.split(",")).map(String::trim).collect(Collectors.toList());
@@ -82,12 +74,12 @@ public class TemplateCommand extends SshCommand {
       // If target templates are specified, create corresponding commits
       if (targets != null) {
         for (String target : targets) {
-          fileRepoHelper.createCommit(this.name, target, json);
+          fileRepoHelper.createCommit(this.projectName, target, json);
         }
       }
-      stdout.println("Applied template " + this.name);
+      stdout.println("Applied template to " + this.projectName);
     } catch (Exception e) {
-      stdout.println("error: " + e.getMessage());
+      stderr.println("error: " + e.getMessage());
     }
   }
 }

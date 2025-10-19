@@ -15,116 +15,255 @@
  * limitations under the License.
  */
 
+// Core of the command was copy-pasted from Gerrit CreateProjectCommand and adapted for template usage
+// because extension of this command was prohibited by java.
+// Original license below:
+// Copyright (C) 2009 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tech.xederro.zenith;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.gerrit.entities.AccountGroup;
+import com.google.gerrit.entities.Project;
+import com.google.gerrit.extensions.api.GerritApi;
+import com.google.gerrit.extensions.api.projects.ConfigValue;
 import com.google.gerrit.extensions.api.projects.ProjectInput;
+import com.google.gerrit.extensions.client.InheritableBoolean;
 import com.google.gerrit.extensions.client.SubmitType;
+import com.google.gerrit.extensions.restapi.RestApiException;
+import com.google.gerrit.server.permissions.PermissionBackendException;
+import com.google.gerrit.server.project.ProjectState;
+import com.google.gerrit.server.project.SuggestParentCandidates;
+import com.google.gerrit.sshd.CommandMetaData;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
 import org.kohsuke.args4j.Option;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-// SSH command for project creation from templates
-public class CreateTemplateCommand extends TemplateCommand {
-  private final ProjectInput input;
+@CommandMetaData(
+    name = "create-template-command",
+    description = "SSH command for project creation from templates")
+public class CreateTemplateCommand extends ApplyTemplateCommand {
+  @Option(
+      name = "--suggest-parents",
+      aliases = {"-S"},
+      usage =
+          "suggest parent candidates, "
+              + "if this option is used all other options and arguments are ignored")
+  private boolean suggestParent;
 
-
-  @Inject
-  public CreateTemplateCommand(FileRepoHelper fileRepoHelper, Gson gson, ProjectInput input) {
-    super(fileRepoHelper, gson);
-    this.input = input;
-  }
-
-  // Command options - populates project input fields from CLI arguments
+  @Option(
+      name = "--owner",
+      aliases = {"-o"},
+      usage = "owner(s) of project")
+  private List<AccountGroup.UUID> ownerIds;
 
   @Option(
       name = "--parent",
       aliases = {"-p"},
-      metaVar = "PARENT",
-      usage = "The name of the parent project. If not set, the All-Projects project will be the parent project.")
-  public void setParent(String parent) {
-    this.input.parent = parent;
-  }
+      metaVar = "NAME",
+      usage = "parent project")
+  private ProjectState newParent;
+
+  @Option(name = "--permissions-only", usage = "create project for use only as parent")
+  private boolean permissionsOnly;
 
   @Option(
-      name = "--desc",
+      name = "--description",
       aliases = {"-d"},
-      metaVar = "DESC",
-      usage = "The description of the project.")
-  public void setDesc(String description) {
-    this.input.description = description;
-  }
-
-  @Option(
-      name = "--permissions-only",
-      aliases = {"-po"},
-      metaVar = "PERMISSIONS-ONLY",
-      usage = "Whether a permission-only project should be created.")
-  public void setPermissionsOnly(Boolean permissionsOnly) {
-    this.input.permissionsOnly = permissionsOnly;
-  }
+      metaVar = "DESCRIPTION",
+      usage = "description of project")
+  private String projectDescription = "";
 
   @Option(
       name = "--submit-type",
-      aliases = {"-st"},
-      metaVar = "SUBMIT-TYPE",
-      usage = """
-          The submit type that should be set for the project (MERGE_IF_NECESSARY, REBASE_IF_NECESSARY, REBASE_ALWAYS, FAST_FORWARD_ONLY, MERGE_ALWAYS, CHERRY_PICK).
-          If not set, MERGE_IF_NECESSARY is set as submit type unless repository.<name>.defaultSubmitType is set to a different value.""")
-  public void setSubmitType(String submitType) {
-    this.input.submitType = SubmitType.valueOf(submitType.toUpperCase());
+      aliases = {"-t"},
+      usage = "project submit type")
+  private SubmitType submitType;
+
+  @Option(name = "--contributor-agreements", usage = "if contributor agreement is required")
+  private InheritableBoolean contributorAgreements = InheritableBoolean.INHERIT;
+
+  @Option(name = "--signed-off-by", usage = "if signed-off-by is required")
+  private InheritableBoolean signedOffBy = InheritableBoolean.INHERIT;
+
+  @Option(name = "--content-merge", usage = "allow automatic conflict resolving within files")
+  private InheritableBoolean contentMerge = InheritableBoolean.INHERIT;
+
+  @Option(name = "--change-id", usage = "if change-id is required")
+  private InheritableBoolean requireChangeID = InheritableBoolean.INHERIT;
+
+  @Option(name = "--reject-empty-commit", usage = "if empty commits should be rejected on submit")
+  private InheritableBoolean rejectEmptyCommit = InheritableBoolean.INHERIT;
+
+  @Option(
+      name = "--new-change-for-all-not-in-target",
+      usage = "if a new change will be created for every commit not in target branch")
+  private InheritableBoolean createNewChangeForAllNotInTarget = InheritableBoolean.INHERIT;
+
+  @Option(
+      name = "--use-contributor-agreements",
+      aliases = {"--ca"},
+      usage = "if contributor agreement is required")
+  void setUseContributorArgreements(@SuppressWarnings("unused") boolean on) {
+    contributorAgreements = InheritableBoolean.TRUE;
   }
 
   @Option(
-      name = "--branches",
+      name = "--use-signed-off-by",
+      aliases = {"--so"},
+      usage = "if signed-off-by is required")
+  void setUseSignedOffBy(@SuppressWarnings("unused") boolean on) {
+    signedOffBy = InheritableBoolean.TRUE;
+  }
+
+  @Option(name = "--use-content-merge", usage = "allow automatic conflict resolving within files")
+  void setUseContentMerge(@SuppressWarnings("unused") boolean on) {
+    contentMerge = InheritableBoolean.TRUE;
+  }
+
+  @Option(
+      name = "--require-change-id",
+      aliases = {"--id"},
+      usage = "if change-id is required")
+  void setRequireChangeId(@SuppressWarnings("unused") boolean on) {
+    requireChangeID = InheritableBoolean.TRUE;
+  }
+
+  @Option(
+      name = "--create-new-change-for-all-not-in-target",
+      aliases = {"--ncfa"},
+      usage = "if a new change will be created for every commit not in target branch")
+  void setNewChangeForAllNotInTarget(@SuppressWarnings("unused") boolean on) {
+    createNewChangeForAllNotInTarget = InheritableBoolean.TRUE;
+  }
+
+  @Option(
+      name = "--branch",
       aliases = {"-b"},
-      metaVar = "BRANCHES",
-      usage = """
-          A list of branches that should be initially created.
-          For the branch names the refs/heads/ prefix can be omitted.
-          The first entry of the list will be the default branch.
-          If the list is empty, host-level default is used.
-          Branches in the Gerrit internal ref space are not allowed, such as refs/groups/, refs/changes/, etc…""")
-  public void setBranches(String branches) {
-    this.input.branches = Arrays.stream(branches.split(",")).map(String::trim).collect(Collectors.toList());
-  }
+      metaVar = "BRANCH",
+      usage = "initial branch name\n(default: gerrit.defaultProject)")
+  private List<String> branch;
+
+  // It is ignored because templates always create an initial commit
+  // but the option is left for compatibility with original CreateProjectCommand
+  @Option(name = "--empty-commit", usage = "to create initial empty commit")
+  private boolean createEmptyCommit;
+
+  @Option(name = "--max-object-size-limit", usage = "max Git object size for this project")
+  private String maxObjectSizeLimit;
 
   @Option(
-      name = "--owners",
-      aliases = {"-o"},
-      metaVar = "OWNERS",
-      usage = """
-          A list of groups that should be assigned as project owner.
-          Each group in the list must be specified as group-id.
-          If not set, the groups that are configured as default owners are set as project owners.""")
-  public void setOwners(String owners) {
-    this.input.owners = Arrays.stream(owners.split(",")).map(String::trim).collect(Collectors.toList());
+      name = "--plugin-config",
+      usage = "plugin configuration parameter with format '<plugin-name>.<parameter-name>=<value>'")
+  private List<String> pluginConfigValues;
+
+  private final GerritApi gApi;
+
+  private final SuggestParentCandidates suggestParentCandidates;
+
+  @Inject
+  public CreateTemplateCommand(
+      GerritApi gApi,
+      SuggestParentCandidates suggestParentCandidates,
+      FileRepoHelper fileRepoHelper,
+      Gson gson
+  ) {
+    super(fileRepoHelper, gson);
+    this.gApi = gApi;
+    this.suggestParentCandidates = suggestParentCandidates;
   }
 
-  @Option(
-      name = "--max-object-size-limit",
-      aliases = {"-mosl"},
-      metaVar = "MAX-OBJECT-SIZE-LIMIT",
-      usage = "Max allowed Git object size for this project. Common unit suffixes of 'k', 'm', or 'g' are supported.")
-  public void setMaxObjectSizeLimit(String maxObjectSizeLimit) {
-    this.input.maxObjectSizeLimit = maxObjectSizeLimit;
-  }
-
-  // Main entry point for the SSH command
   @Override
   protected void run() {
+    enableGracefulStop();
     try {
-      // Always create an empty commit when creating project
-      this.input.createEmptyCommit = true;
-      this.input.name = super.name;
-      // Create the repository
-      fileRepoHelper.createRepo(this.input);
-      stdout.println("Created project " + this.input.name);
-      super.run();
-    } catch (Exception e) {
-      stdout.println("error: " + e.getMessage());
+      if (!suggestParent) {
+        if (projectName == null) {
+          stderr.println("Project name is required.");
+          return;
+        }
+
+        ProjectInput input = new ProjectInput();
+        input.name = projectName;
+        if (ownerIds != null) {
+          input.owners = Lists.transform(ownerIds, uuid -> uuid != null ? uuid.get() : null);
+        }
+        if (newParent != null) {
+          input.parent = newParent.getName();
+        }
+        input.permissionsOnly = permissionsOnly;
+        input.description = projectDescription;
+        input.submitType = submitType;
+        input.useContributorAgreements = contributorAgreements;
+        input.useSignedOffBy = signedOffBy;
+        input.useContentMerge = contentMerge;
+        input.requireChangeId = requireChangeID;
+        input.createNewChangeForAllNotInTarget = createNewChangeForAllNotInTarget;
+        input.branches = branch;
+        input.createEmptyCommit = true;
+        input.maxObjectSizeLimit = maxObjectSizeLimit;
+        input.rejectEmptyCommit = rejectEmptyCommit;
+        if (pluginConfigValues != null) {
+          input.pluginConfigValues = parsePluginConfigValues(pluginConfigValues);
+        }
+
+        gApi.projects().create(input);
+        stdout.println("Created project " + projectName);
+        super.run();
+      } else {
+        for (Project.NameKey parent : suggestParentCandidates.getNameKeys()) {
+          stdout.print(parent.get() + '\n');
+        }
+      }
+    } catch (RestApiException | PermissionBackendException | UnloggedFailure err) {
+      stderr.println(err.getMessage());
     }
+  }
+
+  @VisibleForTesting
+  Map<String, Map<String, ConfigValue>> parsePluginConfigValues(List<String> pluginConfigValues)
+      throws UnloggedFailure {
+    Map<String, Map<String, ConfigValue>> m = new HashMap<>();
+    for (String pluginConfigValue : pluginConfigValues) {
+      List<String> s = Splitter.on('=').splitToList(pluginConfigValue);
+      List<String> s2 = Splitter.on('.').splitToList(s.getFirst());
+      if (s.size() != 2 || s2.size() != 2) {
+        throw die(
+            "Invalid plugin config value '"
+                + pluginConfigValue
+                + "', expected format '<plugin-name>.<parameter-name>=<value>'"
+                + " or '<plugin-name>.<parameter-name>=<value1,value2,...>'");
+      }
+      ConfigValue value = new ConfigValue();
+      String v = s.get(1);
+      if (v.contains(",")) {
+        value.values = Splitter.on(",").splitToList(v);
+      } else {
+        value.value = v;
+      }
+      String pluginName = s2.get(0);
+      String paramName = s2.get(1);
+      Map<String, ConfigValue> l = m.computeIfAbsent(pluginName, k -> new HashMap<>());
+      l.put(paramName, value);
+    }
+    return m;
   }
 }
