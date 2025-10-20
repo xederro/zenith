@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package tech.xederro.zenith;
+package tech.xederro.zenith.command;
 
 import com.google.gerrit.sshd.CommandMetaData;
 import com.google.gerrit.sshd.SshCommand;

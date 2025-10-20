@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package tech.xederro.zenith;
+package tech.xederro.zenith.command;
 
 import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;

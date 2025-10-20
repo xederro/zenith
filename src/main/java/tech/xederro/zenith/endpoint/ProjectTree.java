@@ -1,4 +1,4 @@
-package tech.xederro.zenith;
+package tech.xederro.zenith.endpoint;
 
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.projects.ConfigInfo;

@@ -1,11 +1,9 @@
-package tech.xederro.zenith;
+package tech.xederro.zenith.endpoint;
 
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.server.config.ConfigResource;
 import com.google.inject.Inject;
 import org.kohsuke.args4j.Option;
-
-import java.util.*;
 
 public class ProjectTreeRest implements RestReadView<ConfigResource> {
   private final ProjectTree projectTree;

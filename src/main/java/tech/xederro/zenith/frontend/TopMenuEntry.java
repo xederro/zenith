@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package tech.xederro.zenith;
+package tech.xederro.zenith.frontend;
 
 import com.google.gerrit.extensions.webui.TopMenu;
 import com.google.gerrit.extensions.client.MenuItem;

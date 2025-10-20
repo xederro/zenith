@@ -18,6 +18,8 @@
 package tech.xederro.zenith;
 
 import com.google.gerrit.sshd.PluginCommandModule;
+import tech.xederro.zenith.command.ApplyTemplateCommand;
+import tech.xederro.zenith.command.CreateTemplateCommand;
 
 public class ZenithSshModule extends PluginCommandModule {
   public ZenithSshModule() {

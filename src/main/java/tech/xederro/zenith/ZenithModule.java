@@ -20,6 +20,7 @@ package tech.xederro.zenith;
 import com.google.gerrit.extensions.registration.DynamicSet;
 import com.google.gerrit.extensions.webui.TopMenu;
 import com.google.inject.AbstractModule;
+import tech.xederro.zenith.frontend.TopMenuEntry;
 
 // Bind this plugin in your plugin's Guice Module:
 class ZenithModule extends AbstractModule {

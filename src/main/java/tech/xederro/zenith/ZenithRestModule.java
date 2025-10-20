@@ -18,6 +18,7 @@
 package tech.xederro.zenith;
 
 import com.google.gerrit.extensions.restapi.RestApiModule;
+import tech.xederro.zenith.endpoint.ProjectTreeRest;
 
 import static com.google.gerrit.server.config.ConfigResource.CONFIG_KIND;
 
