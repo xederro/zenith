@@ -32,7 +32,7 @@ public class ProjectTree {
     return buildTree(projectInfoList, config);
   }
 
-  private ProjectAccess buildTree(List<ProjectInfo> projectInfoList, String config) throws RestApiException {
+  private ProjectAccess buildTree(List<ProjectInfo> projectInfoList, String config) {
     Map<String, ProjectAccess> projectMap = new HashMap<>();
 
     for (ProjectInfo data : projectInfoList) {
@@ -65,7 +65,7 @@ public class ProjectTree {
     Value val;
 //    Map<String, AccessSection> accessSections = null;
     try {
-      if (config != null) {
+      if (config != null && !config.equals("parent")) {
         val = getConfigInfo(gerritApi.projects().name(node.name).config(), config);
       } else {
         val = new Value(node.parent, false);

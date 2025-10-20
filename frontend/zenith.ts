@@ -35,7 +35,7 @@ interface Value {
 export class ZenithPage extends LitElement {
 
   @query('#selectMenu') selectMenu!: HTMLDialogElement;
-  @query('#any-btn') anyBtn!: HTMLButtonElement;
+  @query('#open') openBtn!: HTMLButtonElement;
   @query('#close') closeBtn!: HTMLButtonElement;
   @query('#apply') applyBtn!: HTMLButtonElement;
   @query('#query') queryInput!: HTMLInputElement;
@@ -49,11 +49,6 @@ export class ZenithPage extends LitElement {
         border-radius: var(--border-radius);
         background: var(--dialog-background-color);
         box-shadow: var(--elevation-level-5);
-        /*
-         * These styles are taken from main.css
-         * Dialog exists in the top-layer outside the body hence the styles
-         * in main.css were not being applied.
-         */
         font-family: var(--font-family, ''), 'Roboto', Arial, sans-serif;
         font-size: var(--font-size-normal, 1rem);
         line-height: var(--line-height-normal, 1.4);
@@ -64,51 +59,133 @@ export class ZenithPage extends LitElement {
         background-color: black;
         opacity: var(--modal-opacity, 0.6);
       }
-`;
+
+      input,
+      select,
+      textarea {
+        background-color: var(--background-color-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        box-sizing: border-box;
+        color: var(--primary-text-color);
+        margin: 0;
+        padding: var(--spacing-s);
+        font: inherit;
+      }
+
+      select {
+        background-color: var(--select-background-color);
+        color: var(--primary-text-color);
+      }
+
+      button {
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-size: 13px;
+        line-height: normal;
+        padding: 8px 16px;
+        text-align: center;
+      }
+
+      .red {
+        background-color: rgb(192, 19, 19);
+
+        &:hover {
+          background-color: rgb(152, 3, 3);
+          transition: background-color 0.1s ease-in-out;
+        }
+      }
+
+      .blue {
+        background-color: rgb(26, 108, 232);
+
+        &:hover {
+          background-color: rgb(2, 71, 161);
+          transition: background-color 0.1s ease-in-out;
+        }
+      }
+
+      button:focus-visible {
+        outline: 1px solid var(--border-color);
+      }
+      
+      nav {
+        align-items: center;
+        display: flex;
+        height: 3rem;
+        justify-content: space-between;
+        margin: 0 var(--spacing-l);
+      }
+      
+      main {
+        background-color: var(--background-color-primary);
+      }
+    `;
   }
 
   override render() {
     return html`
-      <dialog
-          closedby="any"
-          id="selectMenu"
-      >
-        <label for="query">Query: </label>
-        <input type="text" id="query" name="query" placeholder="Filter projects">
-        <br>
-        <select name="config" id="config">
-          <option value="use_contributor_agreements">use_contributor_agreements</option>
-          <option value="use_content_merge">use_content_merge</option>
-          <option value="use_signed_off_by">use_signed_off_by</option>
-          <option value="create_new_change_for_all_not_in_target">create_new_change_for_all_not_in_target</option>
-          <option value="require_change_id">require_change_id</option>
-          <option value="enable_signed_push">enable_signed_push</option>
-          <option value="require_signed_push">require_signed_push</option>
-          <option value="reject_implicit_merges">reject_implicit_merges</option>
-          <option value="private_by_default">private_by_default</option>
-          <option value="work_in_progress_by_default">work_in_progress_by_default</option>
-          <option value="enable_reviewer_by_email">enable_reviewer_by_email</option>
-          <option value="match_author_to_committer_date">match_author_to_committer_date</option>
-          <option value="reject_empty_commit">reject_empty_commit</option>
-          <option value="skip_adding_author_and_committer_as_reviewers">skip_adding_author_and_committer_as_reviewers</option>
-          <option value="default_submit_type">default_submit_type</option>
-          <option value="max_object_size_limit">max_object_size_limit</option>
-          <option value="project_state">project_state</option>
-        </select>
-        <br>
-        <button class="close" id="close">Close</button>
-        <button class="apply" id="apply">Apply</button>
+      <dialog closedby="any" id="selectMenu">
+        <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; min-width: 320px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h1>Filters:</h1>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="query" style="flex: 0 0 60px;">Query:</label>
+            <input type="text" id="query" name="query" placeholder="Filter projects" style="flex: 1;">
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="config" style="flex: 0 0 60px;">Config:</label>
+            <select name="config" id="config" style="flex: 1;">
+              <option selected value="parent">Parent</option>
+              <option value="use_contributor_agreements">Contributor Agreements</option>
+              <option value="use_content_merge">Content Merge</option>
+              <option value="use_signed_off_by">Signed-off-by</option>
+              <option value="create_new_change_for_all_not_in_target">Create New Change for Non-target</option>
+              <option value="require_change_id">Require Change-Id</option>
+              <option value="enable_signed_push">Enable Signed Push</option>
+              <option value="require_signed_push">Require Signed Push</option>
+              <option value="reject_implicit_merges">Reject Implicit Merges</option>
+              <option value="private_by_default">Private by Default</option>
+              <option value="work_in_progress_by_default">Work in Progress by Default</option>
+              <option value="enable_reviewer_by_email">Reviewer by Email</option>
+              <option value="match_author_to_committer_date">Match Author to Committer Date</option>
+              <option value="reject_empty_commit">Reject Empty Commit</option>
+              <option value="skip_adding_author_and_committer_as_reviewers">Skip Auto-Add Author/Committer</option>
+              <option value="default_submit_type">Default Submit Type</option>
+              <option value="max_object_size_limit">Max Object Size</option>
+              <option value="project_state">Project State</option>
+            </select>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="red" id="close">Close</button>
+            <button class="blue" id="apply" type="submit">Apply</button>
+          </div>
+        </div>
       </dialog>
-      <div>
-        <h1>Repository Graph</h1>
-        <button id="any-btn">Filter</button>
+
+      <nav>
+        <div>
+          <h1>Repository Graph</h1>
+        </div>
+        <div>
+          <button id="open" class="blue">Filter</button>
+        </div>
+      </nav>
+      <main>
         <div id="d3-container"></div>
-      </div>
+      </main>
     `;
   }
 
   override async firstUpdated() {
-    this.anyBtn.addEventListener("click", () => {
+    this.openBtn.addEventListener("click", () => {
       this.selectMenu.showModal();
     });
 
@@ -120,8 +197,12 @@ export class ZenithPage extends LitElement {
       this.selectMenu.close();
 
       let args = []
-      args.push(`query=${this.queryInput.value}`);
-      args.push(`config=${this.configInput.value}`);
+      if (!!this.queryInput.value) {
+        args.push(`query=${this.queryInput.value}`);
+      }
+      if (!!this.configInput.value) {
+        args.push(`config=${this.configInput.value}`);
+      }
       window.history.pushState({}, "", `${args.length > 0 ? `?${args.join("&")}` : ""}`);
 
       this.getDataAndRender();
@@ -134,11 +215,11 @@ export class ZenithPage extends LitElement {
     const plugin = (this as any).plugin;
 
     let args = []
-    if (this.getQueryVariable("query") != "") {
+    if (!!this.getQueryVariable("query")) {
       args.push(`query=${this.getQueryVariable("query")}`);
       this.queryInput.value = this.getQueryVariable("query");
     }
-    if (this.getQueryVariable("config") != "") {
+    if (!!this.getQueryVariable("config")) {
       args.push(`config=${this.getQueryVariable("config")}`);
       this.configInput.value = this.getQueryVariable("config");
     }
@@ -188,12 +269,12 @@ export class ZenithPage extends LitElement {
     const root = d3.hierarchy(data);
 
     const dx = 30;
-    const dy = width / (root.height + 1);
+    const dy = (width-100) / (root.height + 1);
     const tree = d3.tree<Project>().nodeSize([dx, dy]);
     tree(root);
 
     let x0 = Infinity;
-    let x1 = -x0;
+    let x1 = -Infinity;
     root.each(d => {
       if (d.x != undefined && d.x > x1) x1 = d.x;
       if (d.x != undefined && d.x < x0) x0 = d.x;
@@ -205,7 +286,7 @@ export class ZenithPage extends LitElement {
         .attr("viewBox", [-dy / 2, x0 - dx, width, height])
         .attr("width", width)
         .attr("height", height)
-        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif");
+        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif;");
 
     svg.append("g")
         .attr("fill", "none")
@@ -248,8 +329,17 @@ export class ZenithPage extends LitElement {
         .attr("stroke", "#fff")
         .attr("stroke-width", 2)
         .text((d: any) => d.data.value.is_inherited ?
-            `${d.data.name}: ${d.data.value.value} (INHERIT)` :
-            `${d.data.name}: ${d.data.value.value}`);
+            `${d.data.value.value} (INHERIT)` :
+            `${d.data.value.value}`);
+
+    node.append("text")
+        .attr("dy", "0.32em")
+        .attr("x", -10)
+        .attr("text-anchor", "end")
+        .attr("paint-order", "stroke")
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 2)
+        .text((d: any) => d.data.name);
 
     container.appendChild(svg.node() as Node);
   }
