@@ -19,26 +19,36 @@ import '@gerritcodereview/typescript-api/gerrit';
 import {html, css, LitElement} from 'lit';
 import {customElement, query} from 'lit/decorators.js';
 import * as d3 from "d3";
-
-interface Project {
-  name: string;
-  values: Object;
-  children: Project[];
-}
-
-interface Value {
-  value: string;
-  is_inherited: boolean;
-}
+import { Project, Value } from './types';
 
 @customElement('zenith-page')
 export class ZenithPage extends LitElement {
 
+  @query('#selectMenu') selectMenu!: HTMLDialogElement;
   @query('#query') queryInput!: HTMLInputElement;
   data: Project | undefined;
 
   static override get styles() {
     return css`
+      dialog {
+        min-width: 25vw;
+        max-height: 80vh;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        background: var(--dialog-background-color);
+        box-shadow: var(--elevation-level-5);
+        font-family: var(--font-family, ''), 'Roboto', Arial, sans-serif;
+        font-size: var(--font-size-normal, 1rem);
+        line-height: var(--line-height-normal, 1.4);
+        color: var(--primary-text-color, black);
+      }
+
+      dialog::backdrop {
+        background-color: black;
+        opacity: var(--modal-opacity, 0.6);
+      }
+      
       input,
       select,
       textarea {
@@ -55,19 +65,87 @@ export class ZenithPage extends LitElement {
       nav {
         align-items: center;
         display: flex;
-        height: 3rem;
         justify-content: space-between;
+        height: 3rem;
         margin: 0 var(--spacing-l);
       }
-      
-      main {
+
+      button {
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-size: 13px;
+        line-height: normal;
+        padding: 8px 16px;
+        text-align: center;
+      }
+
+      .red {
+        background-color: rgb(192, 19, 19);
+
+        &:hover {
+          background-color: rgb(152, 3, 3);
+          transition: background-color 0.1s ease-in-out;
+        }
+      }
+
+      button:focus-visible {
+        outline: 1px solid var(--border-color);
+      }
+
+      #d3-container {
+        margin: 0;
+        padding: 0;
         background-color: var(--background-color-primary);
+      }
+      
+      .dialog-content {
+        max-height: 60vh;
+        overflow: auto;
+        padding: 1rem;
+        margin: 0;
+      }
+      
+      .list {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        
+        & > li {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          
+          & > .key {
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--link-color);
+            
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+          
+          & > .value {
+            margin-left: 1rem;
+            text-align: right;
+          }
+        }
+      }
+      
+      .inherit {
+        font-size: 0.9em;
+        color: var(--secondary-text-color);
       }
     `;
   }
 
   override render() {
     return html`
+      <dialog closedby="any" id="selectMenu">
+      </dialog>
       <nav>
         <div>
           <h1>Repository Graph</h1>
@@ -77,22 +155,22 @@ export class ZenithPage extends LitElement {
           <input type="text" id="query" name="query" placeholder="Filter projects" style="flex: 1;">
         </div>
       </nav>
-      <main>
-        <div id="d3-container"></div>
-      </main>
+      <div id="d3-container"></div>
     `;
   }
 
   override async firstUpdated() {
+    this.selectMenu.addEventListener("close", () => {
+      this.setHashVariable("open", null);
+    })
+
     this.queryInput.addEventListener("change", () => {
-      let args = []
       if (!!this.queryInput.value) {
-        args.push(`query=${this.queryInput.value}`);
+        this.setHashVariable("query", this.queryInput.value);
       }
-      if (this.getQueryVariable("config") != null) {
-        args.push(`config=${this.getQueryVariable("config")}`);
+      if (this.getHashVariable("config") != null) {
+        this.setHashVariable("config", this.getHashVariable("config"));
       }
-      window.history.pushState({}, "", `${args.length > 0 ? `?${args.join("&")}` : ""}`);
 
       this.getDataAndRender();
     })
@@ -104,9 +182,9 @@ export class ZenithPage extends LitElement {
     const plugin = (this as any).plugin;
 
     let args = []
-    if (!!this.getQueryVariable("query")) {
-      args.push(`query=${this.getQueryVariable("query")}`);
-      this.queryInput.value = this.getQueryVariable("query") ?? "";
+    if (!!this.getHashVariable("query")) {
+      args.push(`query=${this.getHashVariable("query")}`);
+      this.queryInput.value = this.getHashVariable("query") ?? "";
     }
 
     const query = args.length > 0 ? `?${args.join("&")}` : "";
@@ -114,10 +192,17 @@ export class ZenithPage extends LitElement {
     if (this.data != undefined) this.renderTree(this.data);
   }
 
-  getQueryVariable(variable: string): string | null {
-    const params = new URLSearchParams(window.location.search);
+  getHashVariable(variable: string): string | null {
+    const params = new URLSearchParams(window.location.hash.substring(1));
     const val = params.get(variable)
     return val != null ? decodeURI(val) : null;
+  }
+
+  setHashVariable(key: string, val: string|null) {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    if (val == null) params.delete(key)
+    else params.set(key, encodeURI(val));
+    window.location.hash = params.toString();
   }
 
   renderTree(data: Project) {
@@ -136,7 +221,8 @@ export class ZenithPage extends LitElement {
      * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
      * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
      */
-    const chosenConfig = this.getQueryVariable("config") ?? "parent"
+    const chosenConfig = this.getHashVariable("config") ?? "parent"
+    const chosenProject = this.getHashVariable("open");
     const container = this.renderRoot.querySelector('#d3-container');
     if (!container) return;
     container.innerHTML = '';
@@ -157,6 +243,7 @@ export class ZenithPage extends LitElement {
     root.each(d => {
       if (d.x != undefined && d.x > x1) x1 = d.x;
       if (d.x != undefined && d.x < x0) x0 = d.x;
+      if (!this.selectMenu.open && d.data.name == chosenProject) this.showNodeDialog(d.data)
     });
 
     const height = x1 - x0 + dx * 2;
@@ -184,12 +271,15 @@ export class ZenithPage extends LitElement {
         });
 
     const node = svg.append("g")
-        .selectAll("a")
+        .selectAll("g")
         .data(root.descendants())
-        .join("a")
-        .attr("xlink:href", (d: any) => `/admin/repos/${d.data.name},access`)
-        .attr("target", "_blank")
-        .attr("transform", (d: any) => `translate(${d.y},${d.x})`);
+        .join("g")
+        .style("cursor", "pointer")
+        .attr("transform", (d: any) => `translate(${d.y},${d.x})`)
+        .on("click", (event: MouseEvent, d: any) => {
+          event.preventDefault();
+          this.showNodeDialog(d.data);
+        });
 
     node.append("circle")
         .attr("fill", (d: any) => color(this.unwrap(d.data.values[chosenConfig]).value))
@@ -221,6 +311,101 @@ export class ZenithPage extends LitElement {
     container.appendChild(svg.node() as Node);
   }
 
+  showNodeDialog(nodeData: Project) {
+    console.log("Node data:", nodeData);
+    this.selectMenu.innerHTML = '';
+
+    const navBar = document.createElement('nav');
+
+    const title = document.createElement('h1');
+    title.textContent = nodeData.name;
+
+    const closeButton = document.createElement('button');
+    closeButton.id = 'close';
+    closeButton.textContent = 'X';
+    closeButton.className = 'red';
+    closeButton.addEventListener('click', () => {
+      this.selectMenu.close();
+    });
+
+    navBar.appendChild(title);
+    navBar.appendChild(closeButton);
+    this.selectMenu.appendChild(navBar);
+
+    const container = document.createElement('div');
+    container.className = 'dialog-content';
+    this.buildAndRenderDialogTree(container, nodeData);
+    this.selectMenu.appendChild(container);
+
+    this.selectMenu.showModal();
+    this.setHashVariable("open", nodeData.name)
+  }
+
+  buildAndRenderDialogTree(parent: HTMLElement, nodeData: Project) {
+    const elementMap = new Map<string, HTMLElement>();
+    elementMap.set('', parent);
+
+    for (const key of Object.keys(nodeData.values)) {
+      const parts = key.split(' ');
+      let path = '';
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const previousPath = path;
+        path += (path ? '-' : '') + part;
+
+        if (i === parts.length - 1) {
+          // leaf
+          const parentEl = elementMap.get(previousPath)!;
+
+          let ul = parentEl.querySelector(':scope > ul.list') as HTMLElement;
+          if (!ul) {
+            ul = document.createElement('ul');
+            ul.className = 'leaf list';
+            parentEl.appendChild(ul);
+          }
+
+          const li = document.createElement('li');
+          // @ts-ignore
+          const valueData = this.unwrap(nodeData.values[key]);
+
+          const keySpan = document.createElement('span');
+          keySpan.className = 'leaf key';
+          keySpan.textContent = part;
+          keySpan.addEventListener("click", () => {
+            this.setHashVariable("config", key);
+            if (this.data != undefined) this.renderTree(this.data);
+          });
+
+          const valueSpan = document.createElement('span');
+          valueSpan.className = 'leaf value';
+          valueSpan.innerHTML = valueData.is_inherited
+              ? `${valueData.value} <span class="inherit">(INHERIT)</span>`
+              : valueData.value;
+
+          li.appendChild(keySpan);
+          li.appendChild(valueSpan);
+          ul.appendChild(li);
+        } else {
+          // node
+          if (!elementMap.has(path)) {
+            const section = document.createElement('div');
+            section.className = `group level-${i}`;
+            section.style.paddingLeft = `${i * 16}px`;
+
+            const header = document.createElement('h3');
+            header.textContent = part;
+            header.className = "node";
+            section.appendChild(header);
+
+            elementMap.set(path, section);
+            elementMap.get(previousPath)!.appendChild(section);
+          }
+        }
+      }
+    }
+  }
+
   unwrap(val: Value | null) : Value {
     if (val == null) {
       return {value: 'NOT_AVAILABLE', is_inherited: false} as Value;
@@ -230,7 +415,7 @@ export class ZenithPage extends LitElement {
 
   countUniqueValues(project: Project | null): number {
     const uniqueValues = new Set<string>();
-    const chosenConfig = this.getQueryVariable("config") ?? "parent"
+    const chosenConfig = this.getHashVariable("config") ?? "parent"
 
     this.traverse(project, chosenConfig, uniqueValues);
     return uniqueValues.size;
