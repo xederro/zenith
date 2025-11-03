@@ -179,8 +179,8 @@ public class ProjectTree {
 
 
         result.put(key + " label-default-value", new Value(Short.valueOf(labelType.getDefaultValue()).toString(), false));
-        result.put(key + " label-ignore-self-approval", new Value(Boolean.valueOf(labelType.isIgnoreSelfApproval()).toString(), false));
-        result.put(key + " label-allow-post-submit", new Value(Boolean.valueOf(labelType.isAllowPostSubmit()).toString(), false));
+        result.put(key + " label-ignore-self-approval", new Value(Boolean.valueOf(labelType.isIgnoreSelfApproval()).toString().toUpperCase(), false));
+        result.put(key + " label-allow-post-submit", new Value(Boolean.valueOf(labelType.isAllowPostSubmit()).toString().toUpperCase(), false));
       }
     }
 

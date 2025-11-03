@@ -48,7 +48,7 @@ export class ZenithPage extends LitElement {
         background-color: black;
         opacity: var(--modal-opacity, 0.6);
       }
-      
+
       input,
       select,
       textarea {
@@ -61,13 +61,18 @@ export class ZenithPage extends LitElement {
         padding: var(--spacing-s);
         font: inherit;
       }
-      
+
+      a {
+        color: var(--link-color);
+      }
+
       nav {
         align-items: center;
         display: flex;
         justify-content: space-between;
         height: 3rem;
         margin: 0 var(--spacing-l);
+        background-color: var(--background-color-primary);
       }
 
       button {
@@ -100,41 +105,80 @@ export class ZenithPage extends LitElement {
         padding: 0;
         background-color: var(--background-color-primary);
       }
-      
+
       .dialog-content {
         max-height: 60vh;
         overflow: auto;
-        padding: 1rem;
+        padding: 0 1rem 1rem;
         margin: 0;
       }
-      
+
+      .level-0 > .node {
+        top: 0;
+        z-index: 10;
+      }
+
+      .level-1 > .node {
+        top: 2rem;
+        z-index: 9;
+      }
+
+      .level-2 > .node {
+        top: 4rem;
+        z-index: 8;
+      }
+
+      .level-3 > .node {
+        top: 6rem;
+        z-index: 7;
+      }
+
+      .level-4 > .node {
+        top: 8rem;
+        z-index: 6;
+      }
+
+      .level-5 > .node {
+        top: 10rem;
+        z-index: 5;
+      }
+
+      .node {
+        position: sticky;
+        background-color: var(--background-color-primary);
+        margin-bottom: 0;
+        margin-top: 0;
+        padding-bottom: 0.5rem;
+        padding-top: 0.5rem;
+      }
+
       .list {
         list-style-type: none;
         margin: 0;
         padding: 0;
-        
+
         & > li {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          
+
           & > .key {
             font-weight: bold;
             cursor: pointer;
             color: var(--link-color);
-            
+
             &:hover {
               text-decoration: underline;
             }
           }
-          
+
           & > .value {
             margin-left: 1rem;
             text-align: right;
           }
         }
       }
-      
+
       .inherit {
         font-size: 0.9em;
         color: var(--secondary-text-color);
@@ -286,9 +330,12 @@ export class ZenithPage extends LitElement {
         .attr("r", 6);
 
     node.append("title")
-        .text((d: any) => this.unwrap(d.data.values[chosenConfig]).is_inherited ?
-            `${d.data.name}: ${this.unwrap(d.data.values[chosenConfig]).value} (INHERIT)` :
-            `${d.data.name}: ${this.unwrap(d.data.values[chosenConfig]).value}`);
+        .text((d: any) => {
+          const node = this.unwrap(d.data.values[chosenConfig]);
+          return node.is_inherited ?
+              `${d.data.name}: ${node.value} (INHERIT)` :
+              `${d.data.name}: ${node.value}`
+        });
 
     node.append("text")
         .attr("dy", "0.32em")
@@ -296,9 +343,12 @@ export class ZenithPage extends LitElement {
         .attr("text-anchor", "start")
         .attr("paint-order", "stroke")
         .attr("fill", "#fff")
-        .text((d: any) => this.unwrap(d.data.values[chosenConfig]).is_inherited ?
-            `${this.unwrap(d.data.values[chosenConfig]).value} (INHERIT)` :
-            `${this.unwrap(d.data.values[chosenConfig]).value}`);
+        .text((d: any) => {
+          const node = this.unwrap(d.data.values[chosenConfig]);
+          return node.is_inherited ?
+              `${(node.value?.length <= 20 ? node.value : node.value.substring(0, 17) + '...')} (INHERIT)` :
+              `${(node.value?.length <= 20 ? node.value : node.value.substring(0, 17) + '...')}`
+        });
 
     node.append("text")
         .attr("dy", "0.32em")
@@ -306,19 +356,23 @@ export class ZenithPage extends LitElement {
         .attr("text-anchor", "end")
         .attr("paint-order", "stroke")
         .attr("fill", "#fff")
-        .text((d: any) => d.data.name);
+        .text((d: any) => d.data.name.split('/').pop());
 
     container.appendChild(svg.node() as Node);
   }
 
   showNodeDialog(nodeData: Project) {
-    console.log("Node data:", nodeData);
     this.selectMenu.innerHTML = '';
 
     const navBar = document.createElement('nav');
 
+    const atitle = document.createElement('a');
+    atitle.href = `/admin/repos/${nodeData.name},access`;
+    atitle.target = '_blank';
+
     const title = document.createElement('h1');
     title.textContent = nodeData.name;
+    atitle.appendChild(title);
 
     const closeButton = document.createElement('button');
     closeButton.id = 'close';
@@ -328,7 +382,7 @@ export class ZenithPage extends LitElement {
       this.selectMenu.close();
     });
 
-    navBar.appendChild(title);
+    navBar.appendChild(atitle);
     navBar.appendChild(closeButton);
     this.selectMenu.appendChild(navBar);
 
@@ -407,11 +461,8 @@ export class ZenithPage extends LitElement {
   }
 
   unwrap(val: Value | null) : Value {
-    if (val == null) {
+    if (val == null || !val.value) {
       return {value: 'NOT_AVAILABLE', is_inherited: false} as Value;
-    }
-    if (val.value.length > 20) {
-      val.value = val.value.substring(0, 17) + '...';
     }
     return val as Value;
   }
