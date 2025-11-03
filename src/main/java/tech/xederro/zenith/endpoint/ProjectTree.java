@@ -17,6 +17,7 @@
 
 package tech.xederro.zenith.endpoint;
 
+import com.google.common.collect.ImmutableList;
 import com.google.gerrit.entities.*;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.projects.ConfigInfo;
@@ -25,7 +26,6 @@ import com.google.gerrit.extensions.client.ProjectState;
 import com.google.gerrit.extensions.client.SubmitType;
 import com.google.gerrit.extensions.common.ProjectInfo;
 import com.google.gerrit.extensions.restapi.*;
-import com.google.gerrit.server.permissions.LabelPermission;
 import com.google.gerrit.server.project.ProjectCache;
 import com.google.inject.Inject;
 
@@ -101,7 +101,8 @@ public class ProjectTree {
     Map<String, Value> val = new HashMap<>();
     Map<String, AccessSection> currentAccessSections;
     Map<String, LabelType> currentLabelsSections;
-
+    Map<String, String> currentPluginConfigs;
+    Map<String, ImmutableList<String>> currentExtensionPanelSections;
     try {
       val.put("parent", new Value(node.parent, false));
       val.putAll(getConfigInfo(gerritApi.projects().name(node.name).config()));
@@ -111,12 +112,20 @@ public class ProjectTree {
 
       currentAccessSections = cachedConfig.getAccessSections();
       currentLabelsSections = cachedConfig.getLabelSections();
+      currentPluginConfigs = cachedConfig.getPluginConfigs();
+      currentExtensionPanelSections = cachedConfig.getExtensionPanelSections();
 
       Map<String, Value> accessValues = processAccessSections(currentAccessSections, parentProcessedPermissions);
       val.putAll(accessValues);
 
       Map<String, Value> labelValues = processLabelsSections(currentLabelsSections, parentProcessedPermissions);
       val.putAll(labelValues);
+
+      Map<String, Value> processValues = processPluginConfigs(currentPluginConfigs, parentProcessedPermissions);
+      val.putAll(processValues);
+
+      Map<String, Value> processExtensionPanelSections = processExtensionPanelSections(currentExtensionPanelSections, parentProcessedPermissions);
+      val.putAll(processExtensionPanelSections);
 
     } catch (Exception ignored) {}
 
@@ -129,6 +138,81 @@ public class ProjectTree {
     for (ProjectData child : node.children) {
       fillWithData(child, processedPermissions);
     }
+  }
+
+  private Map<String, Value> processExtensionPanelSections(
+      Map<String, ImmutableList<String>> currentExtensionPanelSections,
+      Map<String, Value> parentProcessedPermissions) {
+    Map<String, Value> result = new HashMap<>();
+    if (currentExtensionPanelSections == null) {
+      currentExtensionPanelSections = new HashMap<>();
+    }
+    if (parentProcessedPermissions == null) {
+      parentProcessedPermissions = new HashMap<>();
+    }
+    for (Map.Entry<String, ImmutableList<String>> entry : currentExtensionPanelSections.entrySet()) {
+      String panelName = entry.getKey();
+      ImmutableList<String> panelValues = entry.getValue();
+
+      String key = "extension_panel " + panelName;
+      String value = String.join(",", panelValues);
+
+      result.put(key, new Value(value, false));
+    }
+
+    for (Map.Entry<String, Value> entry : parentProcessedPermissions.entrySet()) {
+      String key = entry.getKey();
+
+      if (!key.startsWith("extension_panel ")) {
+        continue;
+      }
+
+      boolean isOverridden = result.containsKey(key);
+
+      if (!isOverridden) {
+        result.put(key, new Value(entry.getValue().value(), true));
+      }
+    }
+
+    return result;
+  }
+
+  private Map<String, Value> processPluginConfigs(
+      Map<String, String> currentPluginConfigs,
+      Map<String, Value> parentProcessedPermissions) {
+    Map<String, Value> result = new HashMap<>();
+
+    if (currentPluginConfigs == null) {
+      currentPluginConfigs = new HashMap<>();
+    }
+
+    if (parentProcessedPermissions == null) {
+      parentProcessedPermissions = new HashMap<>();
+    }
+
+    for (Map.Entry<String, String> entry : currentPluginConfigs.entrySet()) {
+      String pluginKey = entry.getKey();
+      String pluginValue = entry.getValue();
+
+      String key = "plugin " + pluginKey;
+      result.put(key, new Value(pluginValue, false));
+    }
+
+    for (Map.Entry<String, Value> entry : parentProcessedPermissions.entrySet()) {
+      String key = entry.getKey();
+
+      if (!key.startsWith("plugin ")) {
+        continue;
+      }
+
+      boolean isOverridden = result.containsKey(key);
+
+      if (!isOverridden) {
+        result.put(key, new Value(entry.getValue().value(), true));
+      }
+    }
+
+    return result;
   }
 
   private Map<String, Value> processLabelsSections(
@@ -154,7 +238,7 @@ public class ProjectTree {
           : List.of("*");
 
       for (String refPattern : patterns) {
-        String key = refPattern + " label-" + labelName;
+        String key = "label " + labelName + " " + refPattern;
 
         LabelValue min = labelType.getMin();
         LabelValue max = labelType.getMax();
@@ -187,8 +271,7 @@ public class ProjectTree {
     for (Map.Entry<String, Value> entry : parentProcessedPermissions.entrySet()) {
       String key = entry.getKey();
 
-      String[] parts = key.split(" ", 2);
-      if (parts.length < 2 || !parts[1].startsWith("label-")) {
+      if (!key.startsWith("label ")) {
         continue;
       }
 
