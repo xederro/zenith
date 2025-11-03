@@ -25,6 +25,7 @@ import com.google.gerrit.extensions.client.ProjectState;
 import com.google.gerrit.extensions.client.SubmitType;
 import com.google.gerrit.extensions.common.ProjectInfo;
 import com.google.gerrit.extensions.restapi.*;
+import com.google.gerrit.server.permissions.LabelPermission;
 import com.google.gerrit.server.project.ProjectCache;
 import com.google.inject.Inject;
 
@@ -99,6 +100,7 @@ public class ProjectTree {
   private void fillWithData(ProjectData node, Map<String, Value> parentProcessedPermissions) {
     Map<String, Value> val = new HashMap<>();
     Map<String, AccessSection> currentAccessSections;
+    Map<String, LabelType> currentLabelsSections;
 
     try {
       val.put("parent", new Value(node.parent, false));
@@ -108,9 +110,13 @@ public class ProjectTree {
           .orElseThrow(ProjectCache.illegalState(Project.nameKey(node.name))).getConfig();
 
       currentAccessSections = cachedConfig.getAccessSections();
+      currentLabelsSections = cachedConfig.getLabelSections();
 
       Map<String, Value> accessValues = processAccessSections(currentAccessSections, parentProcessedPermissions);
       val.putAll(accessValues);
+
+      Map<String, Value> labelValues = processLabelsSections(currentLabelsSections, parentProcessedPermissions);
+      val.putAll(labelValues);
 
     } catch (Exception ignored) {}
 
@@ -123,6 +129,77 @@ public class ProjectTree {
     for (ProjectData child : node.children) {
       fillWithData(child, processedPermissions);
     }
+  }
+
+  private Map<String, Value> processLabelsSections(
+      Map<String, LabelType> currentLabelsSections,
+      Map<String, Value> parentProcessedPermissions) {
+
+    Map<String, Value> result = new HashMap<>();
+    if (currentLabelsSections == null) {
+      currentLabelsSections = new HashMap<>();
+    }
+    if (parentProcessedPermissions == null) {
+      parentProcessedPermissions = new HashMap<>();
+    }
+
+    for (Map.Entry<String, LabelType> entry : currentLabelsSections.entrySet()) {
+      String labelName = entry.getKey();
+      LabelType labelType = entry.getValue();
+
+      List<String> refPatterns = labelType.getRefPatterns();
+
+      List<String> patterns = (refPatterns != null && !refPatterns.isEmpty())
+          ? refPatterns
+          : List.of("*");
+
+      for (String refPattern : patterns) {
+        String key = refPattern + " label-" + labelName;
+
+        LabelValue min = labelType.getMin();
+        LabelValue max = labelType.getMax();
+
+        String value;
+        if (min != null && max != null) {
+          value = min.getValue() + "..." + max.getValue();
+        } else if (min != null) {
+          value = String.valueOf(min.getValue());
+        } else if (max != null) {
+          value = String.valueOf(max.getValue());
+        } else {
+          value = "0...0";
+        }
+
+        result.put(key + " label-range", new Value(value, false));
+        result.put(key + " label-function", new Value(labelType.getFunction().getFunctionName(), false));
+
+        labelType.getCopyCondition().ifPresentOrElse(
+            condition ->  result.put(key + " label-copy-condition", new Value(condition, false)),
+            () -> result.put(key + " label-copy-condition", new Value("NONE", false)));
+
+
+        result.put(key + " label-default-value", new Value(Short.valueOf(labelType.getDefaultValue()).toString(), false));
+        result.put(key + " label-ignore-self-approval", new Value(Boolean.valueOf(labelType.isIgnoreSelfApproval()).toString(), false));
+        result.put(key + " label-allow-post-submit", new Value(Boolean.valueOf(labelType.isAllowPostSubmit()).toString(), false));
+      }
+    }
+
+    for (Map.Entry<String, Value> entry : parentProcessedPermissions.entrySet()) {
+      String key = entry.getKey();
+
+      String[] parts = key.split(" ", 2);
+      if (parts.length < 2 || !parts[1].startsWith("label-")) {
+        continue;
+      }
+
+      boolean isOverridden = result.containsKey(key);
+
+      if (!isOverridden) {
+        result.put(key, new Value(entry.getValue().value(), true));
+      }
+    }
+
+    return result;
   }
 
   private Map<String, Value> processAccessSections(

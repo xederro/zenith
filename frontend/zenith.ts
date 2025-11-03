@@ -410,6 +410,9 @@ export class ZenithPage extends LitElement {
     if (val == null) {
       return {value: 'NOT_AVAILABLE', is_inherited: false} as Value;
     }
+    if (val.value.length > 20) {
+      val.value = val.value.substring(0, 17) + '...';
+    }
     return val as Value;
   }
 
