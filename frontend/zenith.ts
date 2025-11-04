@@ -71,7 +71,8 @@ export class ZenithPage extends LitElement {
         display: flex;
         justify-content: space-between;
         height: 3rem;
-        margin: 0 var(--spacing-l);
+        margin: 0;
+        padding: 0 var(--spacing-l);
         background-color: var(--background-color-primary);
       }
 

@@ -37,9 +37,7 @@ public class ProjectTree {
   private final ProjectCache projectCache;
 
   @Inject
-  ProjectTree(
-      GerritApi gerritApi, ProjectCache projectCache
-  ) {
+  ProjectTree(GerritApi gerritApi, ProjectCache projectCache) {
     this.gerritApi = gerritApi;
     this.projectCache = projectCache;
   }
@@ -431,12 +429,7 @@ public class ProjectTree {
     public Map<String, Value> values;
     public List<ProjectData> children;
 
-    public ProjectData(
-        String name,
-        String parent,
-        List<ProjectData> children,
-        Map<String, Value> values
-    ) {
+    public ProjectData(String name, String parent, List<ProjectData> children, Map<String, Value> values) {
       this.name = name;
       this.parent = parent;
       this.values = values;
