@@ -1,0 +1,19 @@
+Subject: [PATCH] setup
+---
+Index: tools/bzl/junit.bzl
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/tools/bzl/junit.bzl b/tools/bzl/junit.bzl
+--- a/tools/bzl/junit.bzl	(revision 0ae0cd430538b8c9ebeeeae3b359cf3dfd5683e9)
++++ b/tools/bzl/junit.bzl	(date 1762278796219)
+@@ -29,7 +29,7 @@
+ public class %s {}
+ """
+ 
+-_PREFIXES = ("org", "com", "edu")
++_PREFIXES = ("org", "com", "edu", "tech")
+ 
+ def _SafeIndex(j, val):
+     for i, v in enumerate(j):

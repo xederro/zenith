@@ -47,7 +47,7 @@ public class ProjectTree {
     return buildTree(projectInfoList);
   }
 
-  private ProjectData buildTree(List<ProjectInfo> projectInfoList) {
+  ProjectData buildTree(List<ProjectInfo> projectInfoList) {
     Map<String, ProjectData> projectMap = new HashMap<>();
 
     for (ProjectInfo data : projectInfoList) {
@@ -138,7 +138,7 @@ public class ProjectTree {
     }
   }
 
-  private Map<String, Value> processExtensionPanelSections(
+  Map<String, Value> processExtensionPanelSections(
       Map<String, ImmutableList<String>> currentExtensionPanelSections,
       Map<String, Value> parentProcessedPermissions) {
     Map<String, Value> result = new HashMap<>();
@@ -175,7 +175,7 @@ public class ProjectTree {
     return result;
   }
 
-  private Map<String, Value> processPluginConfigs(
+  Map<String, Value> processPluginConfigs(
       Map<String, String> currentPluginConfigs,
       Map<String, Value> parentProcessedPermissions) {
     Map<String, Value> result = new HashMap<>();
@@ -213,7 +213,7 @@ public class ProjectTree {
     return result;
   }
 
-  private Map<String, Value> processLabelsSections(
+  Map<String, Value> processLabelsSections(
       Map<String, LabelType> currentLabelsSections,
       Map<String, Value> parentProcessedPermissions) {
 
@@ -283,7 +283,7 @@ public class ProjectTree {
     return result;
   }
 
-  private Map<String, Value> processAccessSections(
+  Map<String, Value> processAccessSections(
       Map<String, AccessSection> currentSections,
       Map<String, Value> parentProcessedPermissions) {
 
@@ -351,7 +351,7 @@ public class ProjectTree {
   }
 
 
-  private String formatPermissionValue(PermissionRule rule, String permissionName) {
+  String formatPermissionValue(PermissionRule rule, String permissionName) {
     StringBuilder value = new StringBuilder();
 
     if (permissionName.startsWith("label-")) {
@@ -367,7 +367,7 @@ public class ProjectTree {
     return value.toString();
   }
 
-  private Map<String, Value> getConfigInfo(ConfigInfo configInfo) throws IllegalStateException {
+  Map<String, Value> getConfigInfo(ConfigInfo configInfo) throws IllegalStateException {
     Map<String, Value> values = new HashMap<>();
     values.put("use_contributor_agreements", parseInherited(configInfo.useContributorAgreements));
     values.put("use_content_merge", parseInherited(configInfo.useContentMerge));
