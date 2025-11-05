@@ -36,6 +36,8 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 // Helper class to manage repositories and handle template commits
 public class FileRepoHelper {
@@ -56,7 +58,7 @@ public class FileRepoHelper {
   }
 
   // Create a commit on a given branch, applying a Handlebars template
-  public void createCommit(String projectTo, String target, Object json) throws Exception {
+  public void createCommit(String projectTo, String target, Object json, boolean override) throws Exception {
     // Parse the target argument into repo, ref, and destination branch
     String[] fromRefTo = target.split("[:@]");
     String from = fromRefTo[0];
@@ -66,7 +68,6 @@ public class FileRepoHelper {
     if (!to.equals("refs/meta/config")) {
       to = Constants.R_HEADS + to;
     }
-
     if (!ref.equals("refs/meta/config")) {
       ref = Constants.R_HEADS + ref;
     }
@@ -74,9 +75,42 @@ public class FileRepoHelper {
     try (Repository repo = repoManager.openRepository(Project.nameKey(projectTo))) {
       ObjectInserter inserter = repo.newObjectInserter();
 
+      // Resolve current head commit and its tree for amend
+      ObjectId headCommitId = repo.resolve(to);
+      RevTree baseTree = null;
+      if (headCommitId != null) {
+        try (RevWalk rw = new RevWalk(repo)) {
+          RevCommit headCommit = rw.parseCommit(headCommitId);
+          baseTree = headCommit.getTree();
+        }
+      }
+
       // Open an in-memory index and editor for staged changes
       DirCache dc = DirCache.newInCore();
       DirCacheEditor editor = dc.editor();
+
+      Set<String> newFilePaths = gatherNewFilePaths(from, ref);
+
+      if (!override && baseTree != null) {
+        try (TreeWalk treeWalk = new TreeWalk(repo)) {
+          treeWalk.addTree(baseTree);
+          treeWalk.setRecursive(true);
+          while (treeWalk.next()) {
+            String path = treeWalk.getPathString();
+            if (!newFilePaths.contains(path)) {
+              FileMode mode = treeWalk.getFileMode(0);
+              ObjectId objectId = treeWalk.getObjectId(0);
+              editor.add(new DirCacheEditor.PathEdit(path) {
+                @Override
+                public void apply(DirCacheEntry ent) {
+                  ent.setFileMode(mode);
+                  ent.setObjectId(objectId);
+                }
+              });
+            }
+          }
+        }
+      }
 
       // Walk source repo and apply template logic
       walkRepo(from, ref, editor, inserter, json);
@@ -88,9 +122,12 @@ public class FileRepoHelper {
       PersonIdent ident = new PersonIdent("Zenith", "zenith@notavailable.com");
       CommitBuilder commit = new CommitBuilder();
       commit.setTreeId(treeId);
-      commit.setMessage("Initial commit by Zenith");
+      commit.setMessage(override ? "Overridden commit by Zenith" : "Amended commit by Zenith");
       commit.setAuthor(ident);
       commit.setCommitter(ident);
+      if (headCommitId != null) {
+        commit.setParentIds(headCommitId);
+      }
 
       ObjectId commitId = inserter.insert(commit);
       inserter.flush();
@@ -102,7 +139,8 @@ public class FileRepoHelper {
       RefUpdate.Result result = refUpdate.update();
 
       // Check for update errors
-      if (result != RefUpdate.Result.NEW && result != RefUpdate.Result.FORCED && result != RefUpdate.Result.FAST_FORWARD) {
+      if (result != RefUpdate.Result.FORCED && result != RefUpdate.Result.FAST_FORWARD
+          && result != RefUpdate.Result.NEW) {
         throw new RuntimeException("Failed to update ref: " + result.name());
       }
     }
@@ -141,5 +179,27 @@ public class FileRepoHelper {
         }
       }
     }
+  }
+
+  // Gather all file paths from a given ref in the repository
+  private Set<String> gatherNewFilePaths(String repoName, String ref) throws IOException {
+    Set<String> filePaths = new HashSet<>();
+    try (Repository repo = repoManager.openRepository(Project.nameKey(repoName))) {
+      ObjectId revId = repo.resolve(ref);
+      try (RevWalk revWalk = new RevWalk(repo)) {
+        RevCommit commit = revWalk.parseCommit(revId);
+        RevTree tree = commit.getTree();
+        try (TreeWalk treeWalk = new TreeWalk(repo)) {
+          treeWalk.addTree(tree);
+          treeWalk.setRecursive(true);
+          while (treeWalk.next()) {
+            if (treeWalk.getFileMode(0).equals(FileMode.REGULAR_FILE)) {
+              filePaths.add(treeWalk.getPathString());
+            }
+          }
+        }
+      }
+    }
+    return filePaths;
   }
 }

@@ -27,6 +27,7 @@ ssh -p <port> <host> zenith create
   [--plugin-config <PARAM> ...]
   [--template-targets <TEMPLATE-TARGETS> | -tt <TEMPLATE-TARGETS>]
   [--json <JSON> | -j <JSON>]
+  [--override]
   { <NAME> }
 ```
 
@@ -68,6 +69,9 @@ Example:
 ```
 --json '{"branch": "main", "team": "qa"}'
 ```
+
+### `--override`
+If present the change will remove everything that is not in template.
 
 ***
 

@@ -37,6 +37,7 @@ public class ApplyTemplateCommand extends SshCommand {
 
   protected List<String> targets;
   protected Object json;
+  protected boolean override;
 
   @Inject
   public ApplyTemplateCommand(FileRepoHelper fileRepoHelper, Gson gson) {
@@ -67,6 +68,14 @@ public class ApplyTemplateCommand extends SshCommand {
     this.json = gson.fromJson(json, Object.class);
   }
 
+  @Option(
+      name = "--override",
+      metaVar = "OVERRIDE",
+      usage = "If whole change should be overriden (discards every other files).")
+  public void setOverride(boolean override) {
+    this.override = override;
+  }
+
   // Main entry point for the SSH command
   @Override
   protected void run() {
@@ -74,7 +83,7 @@ public class ApplyTemplateCommand extends SshCommand {
       // If target templates are specified, create corresponding commits
       if (targets != null) {
         for (String target : targets) {
-          fileRepoHelper.createCommit(this.projectName, target, json);
+          fileRepoHelper.createCommit(this.projectName, target, json, override);
         }
       }
       stdout.println("Applied template to " + this.projectName);
