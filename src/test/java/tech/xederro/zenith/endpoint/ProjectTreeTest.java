@@ -133,14 +133,14 @@ public class ProjectTreeTest {
   @Test
   public void testProcessPluginConfigs_withValidData() {
     Map<String, String> currentConfigs = new HashMap<>();
-    currentConfigs.put("plugin-key", "plugin-value");
+    currentConfigs.put("uploadvalidator", "[plugin \"uploadvalidator\"] rejectDuplicatePathnames = true");
 
     Map<String, ProjectTree.Value> result = invokeProcessPluginConfigs(currentConfigs, new HashMap<>());
 
     assertEquals(1, result.size());
-    assertTrue(result.containsKey("plugin plugin-key"));
-    assertEquals("plugin-value", result.get("plugin plugin-key").value());
-    assertFalse(result.get("plugin plugin-key").isInherited());
+    assertTrue(result.containsKey("plugin uploadvalidator rejectDuplicatePathnames"));
+    assertEquals("true", result.get("plugin uploadvalidator rejectDuplicatePathnames").value());
+    assertFalse(result.get("plugin uploadvalidator rejectDuplicatePathnames").isInherited());
   }
 
   @Test
@@ -154,18 +154,18 @@ public class ProjectTreeTest {
   @Test
   public void testProcessPluginConfigs_withNullParent() {
     Map<String, String> currentConfigs = new HashMap<>();
-    currentConfigs.put("key1", "value1");
+    currentConfigs.put("key1", "[plugin \"uploadvalidator\"] rejectWindowsLineEndings = true");
 
     Map<String, ProjectTree.Value> result = invokeProcessPluginConfigs(currentConfigs, null);
 
     assertEquals(1, result.size());
-    assertTrue(result.containsKey("plugin key1"));
+    assertTrue(result.containsKey("plugin key1 rejectWindowsLineEndings"));
   }
 
   @Test
   public void testProcessPluginConfigs_inheritFromParent() {
     Map<String, String> currentConfigs = new HashMap<>();
-    currentConfigs.put("current-key", "current-value");
+    currentConfigs.put("current-key", "[plugin \"uploadvalidator\"] current-value = true");
 
     Map<String, ProjectTree.Value> parentPermissions = new HashMap<>();
     parentPermissions.put("plugin parent-key", new ProjectTree.Value("parent-value", true));
@@ -174,8 +174,8 @@ public class ProjectTreeTest {
     Map<String, ProjectTree.Value> result = invokeProcessPluginConfigs(currentConfigs, parentPermissions);
 
     assertEquals(2, result.size());
-    assertEquals("current-value", result.get("plugin current-key").value());
-    assertFalse(result.get("plugin current-key").isInherited());
+    assertEquals("true", result.get("plugin current-key current-value").value());
+    assertFalse(result.get("plugin current-key current-value").isInherited());
     assertEquals("parent-value", result.get("plugin parent-key").value());
     assertTrue(result.get("plugin parent-key").isInherited());
   }
@@ -183,31 +183,32 @@ public class ProjectTreeTest {
   @Test
   public void testProcessPluginConfigs_overrideParent() {
     Map<String, String> currentConfigs = new HashMap<>();
-    currentConfigs.put("shared-key", "current-value");
+    currentConfigs.put("shared-key", "[plugin \"uploadvalidator\"] current-value = true");
 
     Map<String, ProjectTree.Value> parentPermissions = new HashMap<>();
-    parentPermissions.put("plugin shared-key", new ProjectTree.Value("parent-value", true));
+    parentPermissions.put("plugin shared-key current-value", new ProjectTree.Value("false", true));
 
     Map<String, ProjectTree.Value> result = invokeProcessPluginConfigs(currentConfigs, parentPermissions);
 
     assertEquals(1, result.size());
-    assertEquals("current-value", result.get("plugin shared-key").value());
-    assertFalse(result.get("plugin shared-key").isInherited());
+    assertEquals("true", result.get("plugin shared-key current-value").value());
+    assertFalse(result.get("plugin shared-key current-value").isInherited());
   }
 
   @Test
   public void testProcessPluginConfigs_multipleConfigs() {
     Map<String, String> currentConfigs = new HashMap<>();
-    currentConfigs.put("key1", "value1");
-    currentConfigs.put("key2", "value2");
-    currentConfigs.put("key3", "value3");
+    currentConfigs.put("key1", "[plugin \"uploadvalidator\"] current-value = true");
+    currentConfigs.put("key2", "[plugin \"uploadvalidator\"] rejectDuplicatePathnames\t= true");
+    currentConfigs.put("key3", "[plugin \"uploadvalidator\"] rejectDuplicatePathnames = true\r\nrejectDuplicatePathnamesLocale = pl");
 
     Map<String, ProjectTree.Value> result = invokeProcessPluginConfigs(currentConfigs, new HashMap<>());
 
-    assertEquals(3, result.size());
-    assertTrue(result.containsKey("plugin key1"));
-    assertTrue(result.containsKey("plugin key2"));
-    assertTrue(result.containsKey("plugin key3"));
+    assertEquals(4, result.size());
+    assertTrue(result.containsKey("plugin key1 current-value"));
+    assertTrue(result.containsKey("plugin key2 rejectDuplicatePathnames"));
+    assertTrue(result.containsKey("plugin key3 rejectDuplicatePathnames"));
+    assertTrue(result.containsKey("plugin key3 rejectDuplicatePathnamesLocale"));
   }
 
   @Test

@@ -189,11 +189,29 @@ public class ProjectTree {
     }
 
     for (Map.Entry<String, String> entry : currentPluginConfigs.entrySet()) {
-      String pluginKey = entry.getKey();
-      String pluginValue = entry.getValue();
+      String key = "plugin " + entry.getKey();
+      List<String> pluginValues = Arrays.stream(entry
+          .getValue()
+          .replaceAll("[ \t\n\r]+", " ")
+          .split("]",2)[1]
+          .split(" = "))
+          .collect(Collectors.toCollection(ArrayList::new));
 
-      String key = "plugin " + pluginKey;
-      result.put(key, new Value(pluginValue, false));
+      if (pluginValues.size() < 2) {
+        continue;
+      }
+
+      String pluginKey = pluginValues.removeFirst();
+      String lastValue = pluginValues.removeLast();
+
+      for (String value : pluginValues) {
+        int idx = value.lastIndexOf(' ');
+        String pluginValue = value.substring(0, idx);
+        result.put((key + " " + pluginKey).replaceAll(" +", " "), new Value(pluginValue, false));
+        pluginKey = value.substring(idx + 1);
+      }
+
+      result.put((key + " " + pluginKey).replaceAll(" +", " "), new Value(lastValue, false));
     }
 
     for (Map.Entry<String, Value> entry : parentProcessedPermissions.entrySet()) {
