@@ -1,6 +1,6 @@
 ***
 
-# Zenith create
+# @PLUGIN@ create
 
 **SSH command for project creation from templates.**
 

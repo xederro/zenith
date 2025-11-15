@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: Zenith Gerrit Extension API
+  version: 1.0.0
+  description: API for Zenith extension in Gerrit Code Review
+
+servers:
+  - url: /
+
+paths:
+  /config/server/zenith~tree:
+    get:
+      summary: Get project tree with optional query filter
+      description: Returns a hierarchical tree of projects with their values and children. Optionally filter by project name.
+      security:
+        - basicAuth: []
+      parameters:
+        - name: query
+          in: query
+          description: Optional filter for project names
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project tree returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Bad request, invalid query parameter
+        '401':
+          description: Unauthorised access
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    Project:
+      type: object
+      required:
+        - name
+        - values
+        - children
+      properties:
+        name:
+          type: string
+        parent:
+          type: string
+        values:
+          type: object
+          additionalProperties:
+            type: object
+            required:
+              - is_inherited
+            properties:
+              value:
+                type: string
+              is_inherited:
+                type: boolean
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic

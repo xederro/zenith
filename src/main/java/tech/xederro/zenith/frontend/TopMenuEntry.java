@@ -29,9 +29,9 @@ public class TopMenuEntry implements TopMenu {
   public List<MenuEntry> getEntries() {
     return Collections.singletonList(
         new MenuEntry(
-            "Zenith",
+            "Browse",
             Collections.singletonList(
-                new MenuItem("Zenith", "/x/zenith/zenith", "_self")
+                new MenuItem("Hierarchy", "/x/zenith/hierarchy", "_self")
             )
         )
     );

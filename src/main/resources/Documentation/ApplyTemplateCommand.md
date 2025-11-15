@@ -1,6 +1,6 @@
 ***
 
-# Zenith apply
+# @PLUGIN@ apply
 
 **SSH command for applying templates to repositories.**
 

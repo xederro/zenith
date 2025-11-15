@@ -19,5 +19,5 @@ import '@gerritcodereview/typescript-api/gerrit';
 import './zenith';
 
 window.Gerrit.install(plugin => {
-  plugin.screen('zenith', 'zenith-page');
+  plugin.screen('hierarchy', 'zenith-page');
 });
