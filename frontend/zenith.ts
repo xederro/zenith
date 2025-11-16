@@ -297,11 +297,11 @@ export class ZenithPage extends LitElement {
         .attr("viewBox", [-dy / 2, x0 - dx, width, height])
         .attr("width", width)
         .attr("height", height)
-        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif;");
+        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif; color: var(--primary-text-color, black);");
 
     svg.append("g")
         .attr("fill", "none")
-        .attr("stroke", "#555")
+        .attr("stroke", "var(--secondary-text-color)")
         .attr("stroke-opacity", 0.4)
         .attr("stroke-width", 3)
         .selectAll("path")
@@ -343,7 +343,7 @@ export class ZenithPage extends LitElement {
         .attr("x", 10)
         .attr("text-anchor", "start")
         .attr("paint-order", "stroke")
-        .attr("fill", "#fff")
+        .attr("fill", "var(--primary-text-color, black)")
         .text((d: any) => {
           const node = this.unwrap(d.data.values[chosenConfig]);
           return node.is_inherited ?
@@ -356,7 +356,7 @@ export class ZenithPage extends LitElement {
         .attr("x", -10)
         .attr("text-anchor", "end")
         .attr("paint-order", "stroke")
-        .attr("fill", "#fff")
+        .attr("fill", "var(--primary-text-color, black)")
         .text((d: any) => d.data.name.split('/').pop());
 
     container.appendChild(svg.node() as Node);
