@@ -272,32 +272,35 @@ export class ZenithPage extends LitElement {
     if (!container) return;
     container.innerHTML = '';
 
-    const width = container.clientWidth;
-
     const color = d3.scaleOrdinal(d3.quantize(d3.interpolateRainbow, this.countUniqueValues(data)+1));
 
     const root = d3.hierarchy(data);
 
     const dx = 30;
-    const dy = (width-100) / (root.height + 1);
+    const dy = Math.max((container.clientWidth-100) / (root.height + 1), 250);
     const tree = d3.tree<Project>().nodeSize([dx, dy]);
     tree(root);
 
     let x0 = Infinity;
     let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
     root.each(d => {
       if (d.x != undefined && d.x > x1) x1 = d.x;
       if (d.x != undefined && d.x < x0) x0 = d.x;
+      if (d.y != undefined && d.y > y1) y1 = d.y;
+      if (d.y != undefined && d.y < y0) y0 = d.y;
       if (!this.selectMenu.open && d.data.name == chosenProject) this.showNodeDialog(d.data)
     });
 
     const height = x1 - x0 + dx * 2;
+    const width = y1 - y0 + dy;
 
     const svg = d3.create("svg")
         .attr("viewBox", [-dy / 2, x0 - dx, width, height])
         .attr("width", width)
         .attr("height", height)
-        .attr("style", "max-width: 100%; height: auto; font: 16px sans-serif; color: var(--primary-text-color, black);");
+        .attr("style", "height: auto; font: 16px sans-serif; color: var(--primary-text-color, black);");
 
     svg.append("g")
         .attr("fill", "none")
